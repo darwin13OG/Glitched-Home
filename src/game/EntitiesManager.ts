@@ -185,7 +185,7 @@ export class EntitiesManager {
         y,
         z,
         health: 100,
-        speed: type === 'stalker' ? 2.1 : 2.5,
+        speed: type === 'stalker' ? 1.25 : 1.45,
         state: 'idle',
       },
       mesh: group,
@@ -206,12 +206,13 @@ export class EntitiesManager {
       return;
     }
 
+    const safeDelta = Math.min(delta, 0.04);
     let minDistanceToPlayer = 999;
 
     for (let i = this.entities.length - 1; i >= 0; i--) {
       const entity = this.entities[i];
       if (entity.stunTimer && entity.stunTimer > 0) {
-        entity.stunTimer -= delta;
+        entity.stunTimer -= safeDelta;
         continue;
       }
 
@@ -239,12 +240,12 @@ export class EntitiesManager {
 
         let currentSpeed = entity.state.speed;
         if (isFlashlightOn && dot > 0.85 && distance < 8) {
-          // Stunned / slowed down by direct flashlight beam
-          currentSpeed = 0.4;
+          // Stunned / slowed down significantly by direct flashlight beam
+          currentSpeed = 0.2;
         }
 
         // Move entity toward player
-        entPos.addScaledVector(dirToPlayer, currentSpeed * delta);
+        entPos.addScaledVector(dirToPlayer, currentSpeed * safeDelta);
         entity.state.x = entPos.x;
         entity.state.z = entPos.z;
 

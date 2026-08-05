@@ -13,6 +13,7 @@ import { LoadingScreen } from './components/LoadingScreen';
 import { MultiplayerModal } from './components/MultiplayerModal';
 import { MultiplayerPlayer } from './types/customization';
 import { GamePhase, Item, PlayerState } from './types/game';
+import { VhsGlitchOverlay } from './components/VhsGlitchOverlay';
 import { AlertCircle, RotateCcw, Trophy, ArrowRight } from 'lucide-react';
 
 export default function App() {
@@ -64,20 +65,31 @@ export default function App() {
   const [prepTimer, setPrepTimer] = useState<number | null>(null);
   const [isInBackrooms, setIsInBackrooms] = useState<boolean>(false);
   const isInBackroomsRef = useRef<boolean>(false);
+  const [isVhsTransition, setIsVhsTransition] = useState<boolean>(false);
+  const [vhsMessage, setVhsMessage] = useState<string>('');
   const backroomsIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const prepIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const enterBackrooms = () => {
     if (!controlsManagerRef.current) return;
+    // Trigger VHS TV static glitch transition screen
+    setVhsMessage('ENTRANDO A LOS BACKROOMS - SEÑAL VHS NTSC...');
+    setIsVhsTransition(true);
+    soundManager.playGlitch();
+
+    setTimeout(() => {
+      setIsVhsTransition(false);
+    }, 2200);
+
     // Teleport player cleanly inside Backrooms corridor (past z = -10 doorway)
     controlsManagerRef.current.position.set(0, 1.7, -11.5);
     isInBackroomsRef.current = true;
     setIsInBackrooms(true);
-    soundManager.playGlitch();
 
-    // Lock portal door behind player so they can't clip back into house
+    // Lock portal door behind player and update Backrooms yellow fog environment
     if (sceneManagerRef.current) {
       sceneManagerRef.current.setBackroomsDoorLocked(true);
+      sceneManagerRef.current.setBackroomsEnvironment(true);
     }
 
     // Start 3-minute (180s) exploration timer
@@ -98,14 +110,23 @@ export default function App() {
 
   const returnToHouse = () => {
     if (!controlsManagerRef.current) return;
-    // Glitch sound & teleport return to house central hallway
+    // Trigger VHS TV static glitch transition screen
+    setVhsMessage('REBOBINANDO CINTA VHS - REGRESANDO A LA CASA...');
+    setIsVhsTransition(true);
     soundManager.playGlitch();
+
+    setTimeout(() => {
+      setIsVhsTransition(false);
+    }, 2200);
+
+    // Teleport return to house central hallway
     controlsManagerRef.current.position.set(0, 1.7, -8.0);
     isInBackroomsRef.current = false;
     setIsInBackrooms(false);
 
     if (sceneManagerRef.current) {
       sceneManagerRef.current.setBackroomsDoorLocked(false);
+      sceneManagerRef.current.setBackroomsEnvironment(false);
     }
 
     // Start 5-second preparation timer before invasion phase starts
@@ -341,12 +362,13 @@ export default function App() {
     let foundId: string | null = null;
 
     // Helper to check if crosshair/camera ray is aiming at target within distance
-    const isAimingAt = (targetPos: THREE.Vector3, maxDist = 3.0, minDot = 0.82) => {
+    const isAimingAt = (targetPos: THREE.Vector3, maxDist = 4.5, minDot = 0.70) => {
       const toTarget = new THREE.Vector3().subVectors(targetPos, cameraPos);
       const dist = toTarget.length();
       if (dist > maxDist) return false;
       toTarget.normalize();
       const dot = cameraDir.dot(toTarget);
+      if (dist < 2.5) return dot >= 0.50;
       return dot >= minDot;
     };
 
@@ -388,17 +410,14 @@ export default function App() {
         }
       }
 
-      // 5. North Hallway Door (Task 3 / Portal Breach) - (0, 1.2, -9.5)
+      // 5. Door (Task 3) - (0, 1.2, -9.5)
       if (!foundPrompt && isAimingAt(new THREE.Vector3(0, 1.2, -9.5), 4.0)) {
         if (tasks.phase === GamePhase.CALM) {
           const t = tasks.tasks.find((task) => task.id === 't3');
           if (t && !t.completed) {
-            foundPrompt = 'Investigar Pasillo Norte';
+            foundPrompt = 'Investigar la puerta';
             foundId = 't3';
           }
-        } else if (tasks.phase === GamePhase.GLITCH) {
-          foundPrompt = 'Cruzar al Portal del Pasillo';
-          foundId = 'portal_breach';
         }
       }
     }
@@ -409,17 +428,17 @@ export default function App() {
         if (foundPrompt) return;
         const worldPos = new THREE.Vector3();
         mesh.getWorldPosition(worldPos);
-        if (isAimingAt(worldPos, 3.0, 0.80)) {
-          if (lootId === 'loot_flashlight') {
+        if (isAimingAt(worldPos, 4.5, 0.70)) {
+          if (lootId.startsWith('loot_flashlight')) {
             foundPrompt = 'Recoger Linterna 🔦';
             foundId = lootId;
-          } else if (lootId === 'loot_medkit') {
+          } else if (lootId.startsWith('loot_medkit')) {
             foundPrompt = 'Recoger Botiquín de Curas 🩹';
             foundId = lootId;
-          } else if (lootId === 'loot_weapon') {
+          } else if (lootId.startsWith('loot_weapon')) {
             foundPrompt = 'Recoger Pistola de Defensa 🔫';
             foundId = lootId;
-          } else if (lootId === 'loot_ammo') {
+          } else if (lootId.startsWith('loot_ammo')) {
             foundPrompt = 'Recoger Munición (+10) 📦';
             foundId = lootId;
           }
@@ -454,14 +473,11 @@ export default function App() {
         sceneManagerRef.current.bedroomWindowMesh.position.z = -5.0;
         sceneManagerRef.current.bedroomWindowMesh.scale.set(1, 1, 0.9);
       }
-    } else if (interactId === 'portal_breach') {
-      taskManagerRef.current?.completeTask('t4');
-      enterBackrooms();
     } else if (interactId.startsWith('loot_')) {
       // Handle item pickup
       const inv = [...controlsManagerRef.current.playerState.inventory];
 
-      if (interactId === 'loot_ammo') {
+      if (interactId.startsWith('loot_ammo')) {
         controlsManagerRef.current.playerState.ammo += 10;
         soundManager.playPickup();
         sceneManagerRef.current.removeLootMesh(interactId);
@@ -477,11 +493,11 @@ export default function App() {
       }
 
       let newItem: Item | null = null;
-      if (interactId === 'loot_flashlight') {
+      if (interactId.startsWith('loot_flashlight')) {
         newItem = { id: 'fl1', name: 'Linterna', icon: '🔦', type: 'flashlight', description: 'Linterna de mano potente (Tecla F).' };
-      } else if (interactId === 'loot_medkit') {
-        newItem = { id: 'med1', name: 'Botiquín', icon: '🩹', type: 'medkit', description: 'Cura +50 de Salud al usarlo.', healAmount: 50 };
-      } else if (interactId === 'loot_weapon') {
+      } else if (interactId.startsWith('loot_medkit')) {
+        newItem = { id: `med_${Date.now()}`, name: 'Botiquín', icon: '🩹', type: 'medkit', description: 'Cura +50 de Salud al usarlo.', healAmount: 50 };
+      } else if (interactId.startsWith('loot_weapon')) {
         newItem = { id: 'wep1', name: 'Pistola de Defensa', icon: '🔫', type: 'weapon', description: 'Aturde a las entidades Backrooms.' };
         // Give 5 initial bullets on pickup
         controlsManagerRef.current.playerState.ammo += 5;
@@ -754,6 +770,9 @@ export default function App() {
       {isLoading && (
         <LoadingScreen onComplete={() => setIsLoading(false)} />
       )}
+
+      {/* VHS TV STATIC GLITCH TRANSITION SCREEN */}
+      {isVhsTransition && <VhsGlitchOverlay message={vhsMessage} />}
 
       {/* Settings & Controls Modal */}
       <SettingsModal

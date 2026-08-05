@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GamePhase, Item, PlayerState, Task } from '../types/game';
-import { Settings, Shield, Zap, Heart, Volume2, Hand, Footprints, Eye, Radio, Sparkles, HelpCircle } from 'lucide-react';
+import { Settings, Shield, Zap, Heart, Volume2, Hand, Footprints, Eye, Radio, Sparkles, HelpCircle, Crosshair, Flashlight, PlusSquare } from 'lucide-react';
 
 interface HUDProps {
   playerState: PlayerState;
@@ -248,36 +248,26 @@ export const HUD: React.FC<HUDProps> = ({
               <div className="text-[10px] text-zinc-300 leading-snug">{currentTask.description}</div>
             </div>
           )}
+        </div>
 
+        {/* TOP-RIGHT: Timers & Settings */}
+        <div className="flex items-center gap-2 shrink-0">
           {/* Backrooms Exploration Timer */}
           {backroomsTimer !== null && backroomsTimer !== undefined && (
-            <div className="bg-amber-950/90 border border-amber-500/50 text-amber-200 px-3 py-1.5 rounded-xl backdrop-blur-md shadow-[0_0_20px_rgba(245,158,11,0.3)] flex flex-col items-center">
-              <div className="text-[9px] font-bold uppercase tracking-widest text-amber-400">
-                ⏱️ COLAPSO DE BACKROOMS
-              </div>
-              <div className="text-lg font-mono font-black text-white">
-                {backroomsTimer}s
-              </div>
-              <div className="text-[8px] text-amber-300/80">Busca armas y provisiones antes de regresar</div>
+            <div className="bg-amber-950/90 border border-amber-500/60 text-amber-200 px-3 py-1 rounded-xl backdrop-blur-md shadow-[0_0_15px_rgba(245,158,11,0.3)] flex items-center gap-2 font-mono">
+              <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">⏱️ Backrooms</span>
+              <span className="text-sm font-black text-white bg-amber-900/80 px-2 py-0.5 rounded border border-amber-500/40">{backroomsTimer}s</span>
             </div>
           )}
 
           {/* Defense Preparation Timer */}
           {prepTimer !== null && prepTimer !== undefined && (
-            <div className="bg-red-950/90 border border-red-500/60 text-red-200 px-4 py-2 rounded-xl backdrop-blur-md shadow-[0_0_25px_rgba(239,68,68,0.5)] flex flex-col items-center">
-              <div className="text-[9px] font-bold uppercase tracking-widest text-red-400">
-                ⚠️ INVASIÓN INMINENTE
-              </div>
-              <div className="text-xl font-mono font-black text-white">
-                {prepTimer}s
-              </div>
-              <div className="text-[9px] text-red-300 font-medium">¡Las entidades están entrando!</div>
+            <div className="bg-red-950/90 border border-red-500/60 text-red-200 px-3 py-1 rounded-xl backdrop-blur-md shadow-[0_0_20px_rgba(239,68,68,0.5)] flex items-center gap-2 font-mono animate-pulse">
+              <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider">⚠️ Invasión</span>
+              <span className="text-sm font-black text-white bg-red-900/80 px-2 py-0.5 rounded border border-red-500/40">{prepTimer}s</span>
             </div>
           )}
-        </div>
 
-        {/* TOP-RIGHT: Settings Button */}
-        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={onToggleSettings}
             className="pointer-events-auto p-2 sm:p-3 bg-[#0a0a0a]/80 hover:bg-zinc-900 backdrop-blur-md border border-white/10 rounded-xl text-zinc-300 hover:text-white transition shadow-xl active:scale-95"
@@ -331,28 +321,54 @@ export const HUD: React.FC<HUDProps> = ({
         )}
 
         {/* Inventory Hotbar (Clean 4 Slots with ammo/heal badges) */}
-
-        {/* Inventory Hotbar (Clean 4 Slots) */}
-        <div className="flex items-center justify-center gap-2 bg-black/50 backdrop-blur-md p-2 border border-white/10 rounded-xl shadow-2xl">
+        <div className="flex items-center justify-center gap-2 bg-black/60 backdrop-blur-md p-2 border border-white/10 rounded-xl shadow-2xl">
           {playerState.inventory.map((item, idx) => {
             const isSelected = playerState.selectedSlot === idx;
             return (
               <button
                 key={idx}
                 onClick={() => onSelectSlot(idx)}
-                title={item ? item.name : 'Slot Vacío'}
-                className={`pointer-events-auto relative w-14 h-14 rounded-lg border flex flex-col items-center justify-center transition-all duration-200 ${
+                title={item ? `${item.name}: ${item.description}` : 'Slot Vacío'}
+                className={`pointer-events-auto relative w-16 h-16 sm:w-18 sm:h-18 rounded-xl border flex flex-col items-center justify-center transition-all duration-200 overflow-hidden ${
                   isSelected
-                    ? 'border-white bg-white/20 shadow-[0_0_15px_rgba(255,255,255,0.3)] scale-105'
-                    : 'border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20'
+                    ? 'border-amber-400 bg-amber-500/20 shadow-[0_0_20px_rgba(245,158,11,0.4)] scale-105'
+                    : 'border-white/15 bg-zinc-900/80 hover:bg-zinc-800 hover:border-white/30'
                 }`}
               >
                 {item ? (
-                  <span className="text-2xl drop-shadow">{item.icon}</span>
+                  item.type === 'weapon' ? (
+                    <div className="flex flex-col items-center">
+                      <Crosshair className="w-6 h-6 text-red-400 mb-0.5" />
+                      <span className="text-[9px] font-bold text-red-300 font-mono leading-tight">
+                        Pistola
+                      </span>
+                      <span className="absolute bottom-1 right-1 bg-red-950/90 text-red-300 border border-red-500/50 px-1 py-0.2 rounded text-[8px] font-mono font-black">
+                        {playerState.ammo} bala{playerState.ammo !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  ) : item.type === 'flashlight' ? (
+                    <div className="flex flex-col items-center">
+                      <Zap className="w-6 h-6 text-yellow-300 mb-0.5" />
+                      <span className="text-[9px] font-bold text-yellow-200 font-mono leading-tight">
+                        Linterna
+                      </span>
+                    </div>
+                  ) : item.type === 'medkit' ? (
+                    <div className="flex flex-col items-center">
+                      <PlusSquare className="w-6 h-6 text-emerald-400 mb-0.5" />
+                      <span className="text-[9px] font-bold text-emerald-300 font-mono leading-tight">
+                        Botiquín
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-2xl">{item.icon}</span>
+                  )
                 ) : (
-                  <span className="text-[10px] text-zinc-600 uppercase font-mono tracking-tighter">Vacío</span>
+                  <span className="text-[9px] text-zinc-600 font-mono uppercase tracking-wider">
+                    Vacío
+                  </span>
                 )}
-                <span className="absolute top-1 left-1.5 text-[9px] font-mono text-gray-400 font-bold">
+                <span className="absolute top-1 left-1.5 text-[10px] font-mono text-zinc-400 font-extrabold">
                   {idx + 1}
                 </span>
               </button>

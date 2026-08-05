@@ -96,7 +96,8 @@ export class SceneManager {
     this.composer.addPass(renderPass);
     this.composer.addPass(this.bloomPass);
 
-    // Groups
+    // Groups & Camera
+    this.scene.add(this.camera);
     this.scene.add(this.houseGroup);
     this.scene.add(this.backroomsGroup);
 
@@ -166,23 +167,41 @@ export class SceneManager {
         ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
       }
     } else if (type === 'backrooms') {
-      ctx.fillStyle = '#c7b358';
+      // Authentic Backrooms Damp Yellow Wallpaper
+      ctx.fillStyle = '#c5b050';
       ctx.fillRect(0, 0, 512, 512);
-      ctx.strokeStyle = '#a6943c';
-      ctx.lineWidth = 2;
-      for (let x = 0; x < 512; x += 32) {
-        for (let y = 0; y < 512; y += 32) {
-          ctx.strokeRect(x, y, 32, 32);
-          ctx.fillStyle = 'rgba(120, 100, 30, 0.1)';
-          ctx.fillRect(x + 4, y + 4, 24, 24);
-        }
+      // Faint vertical wallpaper stripe pattern
+      ctx.strokeStyle = '#b29e40';
+      ctx.lineWidth = 3;
+      for (let x = 0; x < 512; x += 16) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, 512);
+        ctx.stroke();
+      }
+      // Damp aging spots & water stains
+      ctx.fillStyle = 'rgba(100, 85, 25, 0.12)';
+      for (let i = 0; i < 40; i++) {
+        const rx = Math.random() * 512;
+        const ry = Math.random() * 512;
+        const rw = 20 + Math.random() * 50;
+        ctx.beginPath();
+        ctx.arc(rx, ry, rw, 0, Math.PI * 2);
+        ctx.fill();
       }
     } else if (type === 'carpet') {
-      ctx.fillStyle = '#a89d67';
+      // Damp dirty yellow carpet
+      ctx.fillStyle = '#948850';
       ctx.fillRect(0, 0, 512, 512);
-      ctx.fillStyle = '#8f8552';
-      for (let i = 0; i < 3000; i++) {
-        ctx.fillRect(Math.random() * 512, Math.random() * 512, 3, 3);
+      ctx.fillStyle = '#7a703d';
+      for (let i = 0; i < 4000; i++) {
+        ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+      }
+      // Carpet seams & wear marks
+      ctx.strokeStyle = '#685f32';
+      ctx.lineWidth = 4;
+      for (let i = 0; i < 512; i += 128) {
+        ctx.strokeRect(i, 0, 128, 512);
       }
     } else if (type === 'tile') {
       ctx.fillStyle = '#dededa';
@@ -946,6 +965,20 @@ export class SceneManager {
     this.setBackroomsDoorLocked(false);
   }
 
+  public setBackroomsEnvironment(inBackrooms: boolean) {
+    if (inBackrooms) {
+      this.backroomsGroup.visible = true;
+      // Authentic damp yellow Backrooms fog & background to prevent black voids
+      this.scene.background = new THREE.Color(0xc5b050);
+      this.scene.fog = new THREE.FogExp2(0xc5b050, 0.022);
+    } else {
+      this.backroomsGroup.visible = false;
+      // House dark night atmosphere
+      this.scene.background = new THREE.Color(0x0a0a0f);
+      this.scene.fog = new THREE.FogExp2(0x0a0a0f, 0.02);
+    }
+  }
+
   public setBackroomsDoorLocked(locked: boolean) {
     if (locked) {
       if (this.woodenDoorMesh && this.woodenDoorMesh.parent) {
@@ -997,6 +1030,10 @@ export class SceneManager {
     // 3. Clear Backrooms collision boxes
     this.backroomsBoundingBoxes = [];
 
+    // Ambient Backrooms Lighting (prevents lag from 100s of dynamic point lights)
+    const bAmbient = new THREE.AmbientLight(0xdcc874, 0.85);
+    this.backroomsGroup.add(bAmbient);
+
     // Textures
     const backroomsTex = this.createTextureCanvas('backrooms');
     backroomsTex.repeat.set(16, 3);
@@ -1004,10 +1041,11 @@ export class SceneManager {
     const carpetTex = this.createTextureCanvas('carpet');
     carpetTex.repeat.set(32, 32);
 
-    const backWallMat = new THREE.MeshStandardMaterial({ map: backroomsTex, roughness: 0.9 });
+    const backWallMat = new THREE.MeshStandardMaterial({ map: backroomsTex, roughness: 0.85 });
     const backCarpetMat = new THREE.MeshStandardMaterial({ map: carpetTex, roughness: 0.95 });
     const backCeilingMat = new THREE.MeshStandardMaterial({ color: 0xd9c582, roughness: 0.8 });
     const columnMat = new THREE.MeshStandardMaterial({ map: backroomsTex, roughness: 0.85 });
+    const baseboardMat = new THREE.MeshStandardMaterial({ color: 0x4a3b1a, roughness: 0.6 });
 
     // Grid Dimensions: 16x16 cells (Each cell size: 4m x 4m -> Total: 64m x 64m)
     // Grid extends from x = -32 to 32, z = -10 to -74
@@ -1033,12 +1071,18 @@ export class SceneManager {
     bCeiling.position.set(0, wallHeight, -42);
     this.backroomsGroup.add(bCeiling);
 
-    // Outer Perimeter Walls
+    // Outer Perimeter Walls & Inner Wall helper
     const addBWall = (x: number, z: number, w: number, d: number, name = 'Backrooms Wall') => {
       const geo = new THREE.BoxGeometry(w, wallHeight, d);
       const mesh = new THREE.Mesh(geo, backWallMat);
       mesh.position.set(x, wallHeight / 2, z);
       this.backroomsGroup.add(mesh);
+
+      // Add dark wood baseboard trim along floor
+      const bbGeo = new THREE.BoxGeometry(w + 0.02, 0.15, d + 0.02);
+      const bbMesh = new THREE.Mesh(bbGeo, baseboardMat);
+      bbMesh.position.set(x, 0.075, z);
+      this.backroomsGroup.add(bbMesh);
 
       this.backroomsBoundingBoxes.push({
         minX: x - w / 2,
@@ -1053,7 +1097,7 @@ export class SceneManager {
 
     // North Outer Wall (z = -74)
     addBWall(0, -74, 64, wallThickness, 'Backrooms North Outer Wall');
-    // South Outer Wall (z = -10.5) with doorway gap at x = -1.2 to 1.2 (Clean separation from House North Wall at z = -10.0)
+    // South Outer Wall (z = -10.5) with doorway gap at x = -1.2 to 1.2
     addBWall(-16.6, -10.5, 30.8, 0.4, 'Backrooms South Outer Wall Left');
     addBWall(16.6, -10.5, 30.8, 0.4, 'Backrooms South Outer Wall Right');
     // West Outer Wall (x = -32)
@@ -1064,9 +1108,9 @@ export class SceneManager {
     // Procedural Internal Maze Walls & Square Fluorescent Lighting
     const availableCells: { x: number; z: number }[] = [];
 
-    // Square Fluorescent Ceiling Lamp Materials
-    const lampEmissiveMat = new THREE.MeshBasicMaterial({ color: 0xfffca8 });
-    const lampFrameMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
+    // Square Fluorescent Ceiling Lamp Materials (Emissive bloom for high FPS)
+    const lampEmissiveMat = new THREE.MeshBasicMaterial({ color: 0xffffc8 });
+    const lampFrameMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
@@ -1120,14 +1164,18 @@ export class SceneManager {
           const lampMesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.06, 1.2), lampEmissiveMat);
           lampMesh.position.set(cx, wallHeight - 0.03, cz);
           this.backroomsGroup.add(lampMesh);
-
-          // Warm yellow point light source
-          const light = new THREE.PointLight(0xfff3a8, 1.8, 12);
-          light.position.set(cx, wallHeight - 0.25, cz);
-          this.backroomsGroup.add(light);
         }
       }
     }
+
+    // Add 3 key point lights total across maze for depth without lag
+    const pLight1 = new THREE.PointLight(0xfff5b0, 1.5, 20);
+    pLight1.position.set(0, 2.8, -16);
+    const pLight2 = new THREE.PointLight(0xfff5b0, 1.5, 25);
+    pLight2.position.set(-15, 2.8, -42);
+    const pLight3 = new THREE.PointLight(0xfff5b0, 1.5, 25);
+    pLight3.position.set(15, 2.8, -42);
+    this.backroomsGroup.add(pLight1, pLight2, pLight3);
 
     // Shuffle available cells to place loot
     for (let i = availableCells.length - 1; i > 0; i--) {

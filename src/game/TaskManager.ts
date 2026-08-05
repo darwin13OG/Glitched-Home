@@ -42,8 +42,8 @@ export class TaskManager {
     },
     {
       id: 't3',
-      title: 'Inspeccionar el pasillo norte',
-      description: 'Examina la puerta al fondo del pasillo.',
+      title: 'Inspeccionar la puerta',
+      description: 'Examina la puerta al fondo.',
       completed: false,
       phase: GamePhase.CALM,
       targetId: 'Backrooms Portal',
