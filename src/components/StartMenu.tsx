@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play, Users, Gamepad2, Settings, ArrowLeft, Volume2, Sliders, Sparkles } from 'lucide-react';
+import { Play, Users, Gamepad2, Settings, ArrowLeft, Volume2, Sliders } from 'lucide-react';
 import { CHARACTER_SKINS } from '../types/customization';
 
 interface StartMenuProps {
