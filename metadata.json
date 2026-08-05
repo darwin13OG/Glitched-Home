@@ -1,0 +1,6 @@
+{
+  "name": "Glitched Home",
+  "description": "Un juego de terror en primera persona en 3D con físicas, portal de los Backrooms, fases del juego, controles PC/Móvil/VR e interfaz personalizada.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
